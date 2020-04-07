@@ -1,0 +1,46 @@
+{
+  "name": "electron-webpack-quick-start",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "rebuild_all": "electron-rebuild -f -w better-sqlite3",
+    "rebuild_sqlite": "electron-rebuild -f -w better-sqlite3",
+    "start": "electron-webpack dev",
+    "dev": "electron-webpack dev",
+    "compile": "electron-webpack",
+    "dist": "yarn compile && electron-builder",
+    "dist:dir": "yarn dist --dir -c.compression=store -c.mac.identity=null"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "expose-loader": "^0.7.5",
+    "grommet": "^2.12.0",
+    "grommet-controls": "^2.0.4",
+    "itk": "^10.2.2",
+    "js-cookie": "^2.2.1",
+    "polished": "^3.4.4",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "source-map-support": "^0.5.12",
+    "styled-components": "^5.0.1",
+    "vtk.js": "^13.10.2"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/preset-react": "^7.8.3",
+    "babel-loader": "^8.0.6",
+    "copy-webpack-plugin": "^5.1.1",
+    "electron": "^8.1.1",
+    "electron-builder": "^21.0.11",
+    "electron-rebuild": "^1.10.1",
+    "electron-webpack": "^2.7.4",
+    "kw-web-suite": "^9.0.0",
+    "webpack": "~4.35.3",
+    "webpack-filter-warnings-plugin": "^1.2.1"
+  },
+  "electronWebpack": {
+    "renderer": {
+      "webpackConfig": "webpack.renderer.config.js"
+    }
+  }
+}

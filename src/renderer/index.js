@@ -53,6 +53,6 @@ var dir =  'E:/JS/electron-webpack-quick-start/data/images/';
     return list;
 }).then((list) => readImageDICOMFileSeries(null,list))//this.state.localPath);*/
 
-
+document.documentElement.style.overflow = "hidden";
 ReactDOM.render(<App />, document.getElementById('app'));
 //ReactDOM.render('Ciao', document.getElementById('app'));

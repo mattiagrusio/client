@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import CTWidget from "./CTWidget";
+import ResliceCursorWidget from "./ResliceCursorWidget";
 import path from "path";
 //import Database from 'better-sqlite3';
 //import readImageLocalDICOMFileSeries from 'itk/readImageLocalDICOMFileSeries';
@@ -7,6 +7,11 @@ import readImageDICOMFileSeries from "itk/readImageDICOMFileSeries";
 import axios from "axios";
 import Cookies from "js-cookie";
 import styled from "styled-components";
+import vtkITKHelper from "vtk.js/Sources/Common/DataModel/ITKHelper";
+import ToolBox from "./ToolBox"
+
+const bodyScrollLock = require('body-scroll-lock');
+const disableBodyScroll = bodyScrollLock.disableBodyScroll;
 
 if (Cookies.get("server-address") === undefined) {
   Cookies.set("server-address", "http://localhost:3000");
@@ -18,30 +23,41 @@ import {
   Box,
   Button,
   Select,
-  Grid,
-  Heading,
+  Layer,
+  Text,
+  ThemeContext,
   Header,
   Grommet,
-  Layer,
+  RadioButtonGroup,
   ResponsiveContext,
+  Sidebar,
+  Stack,
+  RangeSelector,
 } from "grommet";
 
-import { FormClose, Notification, Menu } from "grommet-icons";
 
 const theme = {
   global: {
     colors: {
-      brand: "#228BE6",
+      brand: "#00457b",
+      'accent-yellow': "#FFDD00",
+      'accent-1': 'light-4',
+      'accent-green': "#78A22F",
+      'neutral-1': "#00233D",
+      focus: 'black',
+      selected: 'black',
+      text: {
+        dark: 'accent-1',
+        light: 'neutral-1',
+      },
     },
+    hover: {
+      background: 'accent-green',
+      color: 'neutral-1',
+    },
+
     font: {
       family: "Arial",
-    },
-  },
-  select: {
-    options: {
-      text: {
-        size: "small",
-      },
     },
   },
   rangeInput: {
@@ -65,6 +81,11 @@ const OPTIONS = [];
 
 var patientList = {};
 
+const FloatingBox = styled(Box)`
+  position: absolute;
+  z-index: 1;
+`;
+
 //SQLITE
 //const dbPath = path.join('./', 'data', 'db.sqlite');
 //console.log(dbPath);
@@ -79,12 +100,20 @@ class App extends Component {
     this.readFolder = this.readFolder.bind(this);
     this.getPatientList = this.getPatientList.bind(this);
     this.getPatientData = this.getPatientData.bind(this);
+    this.handleWindowLevel = this.handleWindowLevel.bind(this);
     this.handleResize = this.handleResize.bind(this);
     this.fileInput = React.createRef();
-    this.ctWidget = React.createRef();
+    this.mprWidget = React.createRef();
+
+    // this.sliceButton = React.createRef();
+    // this.analyticsButton = React.createRef();
+
+    // this.transverseWidget = React.createRef();
+    // this.coronalWidget = React.createRef();
+    // this.sagittalWidget = React.createRef();
+    // this.widget3D = React.createRef();
     //window.addEventListener('resize', this.handleResize);
   }
-
   state = {
     showSidebar: false,
     value: [],
@@ -94,6 +123,14 @@ class App extends Component {
     heigth: "",
   };
 
+  componentDidMount() {
+    // 2. Get a target element that you want to persist scrolling for (such as a modal/lightbox/flyout/nav).
+    // Specifically, the target element is the one we would like to allow scroll on (NOT a parent of that element).
+    // This is also the element to apply the CSS '-webkit-overflow-scrolling: touch;' if desired.
+    // this.targetElement = document.body;
+    // document.documentElement.style.overflow = 'hidden';
+    // disableBodyScroll(this.targetElement);
+  }
   handleResize() {
     this.setState({ width: window.innerWidth, heigth: window.innerHeight });
   }
@@ -106,13 +143,21 @@ class App extends Component {
       console.log(err);
     }
   }
+  async reconstruct(text) {
+    const response = await axios.post(serverAddress + "/reconstruct", {
+      path: text,
+    }); //
+    res = response.data;
+    console.log(res);
+    // this.setState({ options: result });
+  }
   async getPatientList(text) {
-    const response = await axios.post(serverAddress + "/patient/list", {
+    const response = await axios.post(serverAddress + "/patient/getList", {
       search: text,
     }); //
     patientList = response.data;
     var result = patientList.map((item) => {
-      return item["id"] + " " + item["name"];
+      return item["name"];
     });
     //console.log(result);
     this.setState({ options: result });
@@ -123,14 +168,14 @@ class App extends Component {
       //options: OPTIONS
       //rows: ROWS
     });
-    let response = await axios.post(serverAddress + "/patient/ctHeader", {
-      id: patientList[0].id,
+    let response = await axios.post(serverAddress + "/patient/getHeader", {
+      name: text,
     });
     var imageObj = response.data;
     console.log(imageObj);
 
     //now request data
-    response = await axios.get(serverAddress + "/patient/ctData", {
+    response = await axios.get(serverAddress + "/patient/getData", {
       responseType: "arraybuffer",
     });
     const array8 = new Uint8Array(response.data);
@@ -143,9 +188,26 @@ class App extends Component {
         );
         console.log(imageObj.data.length);
         break;
+      case "float":
+        imageObj.data = new Float32Array(
+          array8.buffer,
+          0,
+          array8.length / Float32Array.BYTES_PER_ELEMENT
+        );
+        console.log(imageObj.data.length);
+        break;
     }
 
-    this.ctWidget.current.changeData(imageObj);
+    const imageData = vtkITKHelper.convertItkToVtkImage(imageObj);
+
+    this.mprWidget.current.changeData(imageData);
+  }
+  handleWindowLevel(win,lev){
+    if(this.mprWidget.current !== null){
+      console.log(win);
+      console.log(lev);
+      this.mprWidget.current.handleWindowLevel(win,lev);
+    }
   }
   async openDialog() {
     const { dialog } = require("electron").remote; //dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
@@ -170,49 +232,45 @@ class App extends Component {
     var imageData = await readImageDICOMFileSeries(null, filesData);
     console.log(imageData[0].spacing);
   }
-
   render() {
     const { showSidebar, options, value } = this.state;
     console.log("render");
     //const [value, setValue] = React.useState('medium');
     return (
       <Grommet theme={theme} full>
-        <Box fill>
+        <Box fill background = "black">
           <Header
             align="center"
             justify="between"
             background="brand"
             pad={{ left: "medium", right: "small", vertical: "small" }}
+            gap='medium'
             elevation="medium"
             style={{ zIndex: "1" }}
           >
-            <Button icon={<Menu />} />
-            <Box fill>
-                <Select
-                  multiple={false}
-                  value={value}
-                  alignSelf="stretch"
-                  onSearch={(value) => {
-                    this.getPatientList(value);
-                  }}
-                  onChange={(event) => {
-                    this.getPatientData(event.value);
-                  }}
-                  options={options}
-                  //rows={rows}   // <CTWidget ref={this.ctWidget} />
-                />
+            <Box fill pad='none' align="center">
+              <Select
+                size='large'
+                multiple={false}
+                value={value}
+                alignSelf="stretch"
+                onOpen={(value) => {
+                  this.getPatientList(value);
+                }}
+                onChange={(event) => {
+                  this.getPatientData(event.value);
+                }}
+                options={options}
+              //rows={rows}   // <CTWidget ref={this.ctWidget} />
+              />
             </Box>
           </Header>
-          <Box fill background="dark-3" gap="small">
-            {/* row 1 */}
-            <Box fill direction="row" gap="small" background="dark-3">
-              <CTWidget ref={this.ctWidget} />
-              <CTWidget ref={this.ctWidget} />
+          <Box fill direction = "row" style = {{position: "relative", right: "0px", bottom: "0px", left: "0px"}}>
+            <Box direction = "row" fill = "vertical"  pad='small' style = {{position: "absolute", zIndex: 1, top: "0px", bottom: "0px", left: "0px"}}>
+              <ToolBox buttons={[{name:"Slice", handler: {}},{name: "Analytics", handler: {}}, {name:"Window/Level", handler: this.handleWindowLevel}]} />
             </Box>
-            {/* row 1 */}
-            <Box fill direction="row" gap="small" background="dark-3">
-              <CTWidget ref={this.ctWidget} />
-              <CTWidget ref={this.ctWidget} />
+            <Box fill>
+              <ResliceCursorWidget ref={this.mprWidget} />
             </Box>
           </Box>
         </Box>
@@ -220,15 +278,5 @@ class App extends Component {
     );
   }
 }
-//CTWidget localPath = 'app/data/images/'/</Grommet>
+//<ToolBox handlers = {[this.handleWindowLevel]} buttons={["Slice", "Analytics", "Window/Level"]} />
 export default App;
-/*
-
-              <Box fill = "vertical"  gridArea="coronal" background="light-2">     </Box>
-              <Box fill = "vertical"  gridArea="3D" background="light-2">          </Box>
-
-<CTWidget ref={this.ctWidget} />
-<CTWidget ref={this.ctWidget} />
-<CTWidget ref={this.ctWidget} />
-<CTWidget ref={this.ctWidget} />
-*/

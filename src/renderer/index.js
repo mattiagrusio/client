@@ -4,6 +4,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './Components/App.js';
+import Main from './Components/MainPage';
 import fs from 'fs';
 import path from 'path';
 

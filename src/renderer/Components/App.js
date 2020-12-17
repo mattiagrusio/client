@@ -39,30 +39,25 @@ import {
 const theme = {
   global: {
     colors: {
-      brand: "#00457b",
+      'accent-blue': "#00457b",
       'accent-yellow': "#FFDD00",
       'accent-1': 'light-4',
       'accent-green': "#78A22F",
       'neutral-1': "#00233D",
-      focus: 'black',
-      selected: 'black',
+      brand: 'accent-green',
+      focus: 'accent-1',
+      selected: 'accent-1',
       text: {
         dark: 'accent-1',
         light: 'neutral-1',
       },
     },
     hover: {
-      background: 'accent-green',
+      background: 'brand',
       color: 'neutral-1',
     },
-
     font: {
       family: "Arial",
-    },
-  },
-  rangeInput: {
-    track: {
-      color: "light-3",
     },
   },
 };
@@ -100,10 +95,11 @@ class App extends Component {
     this.readFolder = this.readFolder.bind(this);
     this.getPatientList = this.getPatientList.bind(this);
     this.getPatientData = this.getPatientData.bind(this);
-    this.handleWindowLevel = this.handleWindowLevel.bind(this);
+    this.handleRange = this.handleRange.bind(this);
     this.handleResize = this.handleResize.bind(this);
     this.fileInput = React.createRef();
     this.mprWidget = React.createRef();
+    this.handleShowInfo = this.handleShowInfo.bind(this);
 
     // this.sliceButton = React.createRef();
     // this.analyticsButton = React.createRef();
@@ -113,15 +109,17 @@ class App extends Component {
     // this.sagittalWidget = React.createRef();
     // this.widget3D = React.createRef();
     //window.addEventListener('resize', this.handleResize);
-  }
-  state = {
+    
+  this.state = {
     showSidebar: false,
     value: [],
     options: OPTIONS,
     currentPatient: "",
     width: "",
     heigth: "",
+    showInfo: true,
   };
+  }
 
   componentDidMount() {
     // 2. Get a target element that you want to persist scrolling for (such as a modal/lightbox/flyout/nav).
@@ -163,11 +161,6 @@ class App extends Component {
     this.setState({ options: result });
   }
   async getPatientData(text) {
-    this.setState({
-      value: text,
-      //options: OPTIONS
-      //rows: ROWS
-    });
     let response = await axios.post(serverAddress + "/patient/getHeader", {
       name: text,
     });
@@ -199,15 +192,13 @@ class App extends Component {
     }
 
     const imageData = vtkITKHelper.convertItkToVtkImage(imageObj);
-
-    this.mprWidget.current.changeData(imageData);
+    this.setState({vtkImage: imageData, patient: imageObj.name});
   }
-  handleWindowLevel(win,lev){
-    if(this.mprWidget.current !== null){
-      console.log(win);
-      console.log(lev);
-      this.mprWidget.current.handleWindowLevel(win,lev);
-    }
+  handleRange(low,high){
+    this.setState({lowRange: low, highRange: high});
+  }
+  handleShowInfo(){
+    this.setState((state) => ({showInfo: !state.showInfo}));
   }
   async openDialog() {
     const { dialog } = require("electron").remote; //dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
@@ -238,7 +229,7 @@ class App extends Component {
     //const [value, setValue] = React.useState('medium');
     return (
       <Grommet theme={theme} full>
-        <Box fill background = "black">
+        <Box fill>
           <Header
             align="center"
             justify="between"
@@ -266,11 +257,17 @@ class App extends Component {
             </Box>
           </Header>
           <Box fill direction = "row" style = {{position: "relative", right: "0px", bottom: "0px", left: "0px"}}>
-            <Box direction = "row" fill = "vertical"  pad='small' style = {{position: "absolute", zIndex: 1, top: "0px", bottom: "0px", left: "0px"}}>
-              <ToolBox buttons={[{name:"Slice", handler: {}},{name: "Analytics", handler: {}}, {name:"Window/Level", handler: this.handleWindowLevel}]} />
+            <Box direction = "row" fill = "vertical"  pad='small' style = {{position: "absolute", zIndex: 1, top: "0px", bottom: "0px", right: "0px"}}>
+              <ToolBox  infoButton={{name:"Info", handler: this.handleShowInfo}} 
+                        rangeButton={{name:"Range", handler: this.handleRange, lowRange: this.state.lowRange, highRange: this.state.highRange}} />
             </Box>
             <Box fill>
-              <ResliceCursorWidget ref={this.mprWidget} />
+              <ResliceCursorWidget 
+              lowRange={this.state.lowRange} 
+              highRange={this.state.highRange} 
+              vtkImage = {this.state.vtkImage} 
+              showInfo= {this.state.showInfo} 
+              />
             </Box>
           </Box>
         </Box>

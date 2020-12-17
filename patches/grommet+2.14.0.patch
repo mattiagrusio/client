@@ -1,0 +1,13 @@
+diff --git a/node_modules/grommet/components/RangeSelector/RangeSelector.js b/node_modules/grommet/components/RangeSelector/RangeSelector.js
+index 2baf0cc..fc351ad 100644
+--- a/node_modules/grommet/components/RangeSelector/RangeSelector.js
++++ b/node_modules/grommet/components/RangeSelector/RangeSelector.js
+@@ -116,7 +116,7 @@ var RangeSelector = /*#__PURE__*/(0, _react.forwardRef)(function (_ref, ref) {
+       }
+ 
+       if (nextValues) {
+-        setMoveValue(value);
++        setMoveValue(value2);
+         onChange(nextValues);
+       }
+     };
